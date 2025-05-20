@@ -1,11 +1,7 @@
 'use client';
-import { useStocksQuery } from '@/api/queries/stocks';
-import { StockPriceUpdate, twelveDataClientApi } from '@/api/twelvedata';
-import { StockConverter } from '@/converters/stock.converter';
-import config from '@/core/config';
-import { Stock } from '@/types/stock';
+import { Filter, useStockContext } from '@/api/context';
 import { numberFormat } from '@/utils';
-import { ArrowDownward, ArrowUpward, Cancel, Filter, FilterList, Search } from '@mui/icons-material';
+import { ArrowDownward, ArrowUpward, Cancel, FilterList, Search } from '@mui/icons-material';
 import {
 	Box,
 	FormControl,
@@ -21,14 +17,8 @@ import {
 	Typography,
 } from '@mui/material';
 import { DataGrid, GridColDef, QuickFilter, QuickFilterClear, QuickFilterControl } from '@mui/x-data-grid';
-import { useQueryClient } from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-
-const UPDATE_INTERVAL = 5000;
-const stockConverter = new StockConverter();
-
-const symbols = config.twelveData.defaultSymbols.slice(0, 8);
+import { useEffect } from 'react';
 
 const columns: GridColDef[] = [
 	{
@@ -87,44 +77,12 @@ const columns: GridColDef[] = [
 	},
 ] as const;
 
-type Filter = 'grow' | 'fall' | 'all';
-
 export const StockList = () => {
 	const searchParams = useSearchParams();
 	const { replace } = useRouter();
 	const pathName = usePathname();
 
-	const queryClient = useQueryClient();
-	const { data, isLoading } = useStocksQuery(symbols.join(','));
-
-	const [filter, setFilter] = useState<Filter>('all');
-
-	const filteredData = useMemo(() => {
-		const convertedData = stockConverter.convertToDataGrid(data ?? []);
-
-		if (filter === 'grow') {
-			return convertedData.filter(stock => stock.price > stock.open);
-		} else if (filter === 'fall') {
-			return convertedData.filter(stock => stock.price <= stock.open);
-		}
-
-		return convertedData;
-	}, [data, filter]);
-
-	const onPriceUpdate = useCallback(
-		(lastUpdate: number, update: StockPriceUpdate) => {
-			const now = Date.now();
-
-			if (now - lastUpdate >= UPDATE_INTERVAL) {
-				queryClient.setQueryData(['stocks', symbols.join(',')], (oldData: Stock[]) => {
-					if (!oldData) return oldData;
-					return oldData.map(stock => (stock.symbol === update.symbol ? { ...stock, price: update.price } : stock));
-				});
-				lastUpdate = now;
-			}
-		},
-		[symbols],
-	);
+	const { stocks, filter, setFilter, isLoading } = useStockContext();
 
 	const handleChangeFilter = (filter: Filter) => {
 		setFilter(filter);
@@ -138,16 +96,6 @@ export const StockList = () => {
 		setFilter(searchParams.get('filter') as Filter);
 	}, [searchParams]);
 
-	useEffect(() => {
-		const lastUpdate = Date.now();
-
-		const unsubscribe = twelveDataClientApi.subscribeToPrices(symbols.join(','), update =>
-			onPriceUpdate(lastUpdate, update),
-		);
-
-		return () => unsubscribe();
-	}, [symbols]);
-
 	return (
 		<Box>
 			<Typography variant='h4' component='h4' sx={{ textAlign: 'center', pb: 5 }}>
@@ -158,16 +106,15 @@ export const StockList = () => {
 					toolbar: () => <CustomToolbar filter={filter} handleChangeFilter={handleChangeFilter} />,
 				}}
 				showToolbar
-				estimatedRowCount={8}
 				loading={isLoading}
 				columns={columns}
-				rows={filteredData}
-				disableAutosize={true}
-				disableColumnFilter={true}
-				disableColumnMenu={true}
-				disableColumnSorting={true}
-				disableColumnSelector={true}
-				disableDensitySelector={true}
+				rows={stocks}
+				disableAutosize
+				disableColumnFilter
+				disableColumnMenu
+				disableColumnSorting
+				disableColumnSelector
+				disableDensitySelector
 			/>
 		</Box>
 	);

@@ -1,8 +1,8 @@
 import { Container } from '@mui/material';
 import Typography from '@mui/material/Typography';
 
-export default function Stock({ params }: { params: { symbol: string } }) {
-	const { symbol } = params;
+export default async function Stock({ params }: { params: Promise<{ symbol: string }> }) {
+	const { symbol } = await params;
 
 	return (
 		<Container maxWidth='xl' component='section'>
