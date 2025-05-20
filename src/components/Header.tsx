@@ -15,6 +15,7 @@ export const Header = () => {
 				bgcolor: theme.palette.grey[200],
 				display: 'flex',
 				placeItems: 'center',
+				zIndex: 100,
 			}}>
 			<Container maxWidth='xl'>
 				<Typography
