@@ -59,7 +59,7 @@ class TwelveDataApi {
 				params: {
 					symbol: symbols ?? this.symbols.join(','),
 					interval: '1day',
-					outputsize: 1,
+					outputsize: 40,
 				},
 			});
 
