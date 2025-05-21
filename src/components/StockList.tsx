@@ -1,11 +1,8 @@
 'use client';
-import { useStocksQuery } from '@/api/queries/stocks';
-import { StockPriceUpdate, twelveDataClientApi } from '@/api/twelvedata';
-import { StockConverter } from '@/converters/stock.converter';
-import config from '@/core/config';
-import { Stock } from '@/types/stock';
+import { Filter, useStockContext } from '@/api/context';
+import { StockDataGrid, TechnicalIndicators } from '@/types/stock';
 import { numberFormat } from '@/utils';
-import { ArrowDownward, ArrowUpward, Cancel, Filter, FilterList, Search } from '@mui/icons-material';
+import { ArrowDownward, ArrowUpward, Cancel, FilterList, Search } from '@mui/icons-material';
 import {
 	Box,
 	FormControl,
@@ -20,15 +17,18 @@ import {
 	Toolbar,
 	Typography,
 } from '@mui/material';
-import { DataGrid, GridColDef, QuickFilter, QuickFilterClear, QuickFilterControl } from '@mui/x-data-grid';
-import { useQueryClient } from '@tanstack/react-query';
+import {
+	DataGrid,
+	GridCallbackDetails,
+	GridColDef,
+	GridRowSelectionModel,
+	QuickFilter,
+	QuickFilterClear,
+	QuickFilterControl,
+} from '@mui/x-data-grid';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-
-const UPDATE_INTERVAL = 5000;
-const stockConverter = new StockConverter();
-
-const symbols = config.twelveData.defaultSymbols.slice(0, 8);
+import { useEffect, useState } from 'react';
+import { StockChart } from './StockChart';
 
 const columns: GridColDef[] = [
 	{
@@ -52,6 +52,30 @@ const columns: GridColDef[] = [
 						currency: params.row.currency,
 						style: 'currency',
 					})}
+				</Typography>
+			);
+		},
+	},
+	{
+		field: 'rsi',
+		headerName: 'RSI (14)',
+		headerAlign: 'center',
+		align: 'center',
+		flex: 1,
+		renderCell(params) {
+			return <Typography sx={{ fontSize: 'inherit', lineHeight: 'inherit' }}>{numberFormat(params.value)}</Typography>;
+		},
+	},
+	{
+		field: 'macd',
+		headerName: 'MACD',
+		headerAlign: 'center',
+		align: 'center',
+		flex: 1,
+		renderCell(params) {
+			return (
+				<Typography sx={{ fontSize: 'inherit', lineHeight: 'inherit' }}>
+					{numberFormat((params.value as TechnicalIndicators['macd']).macdLine ?? 0)}
 				</Typography>
 			);
 		},
@@ -87,44 +111,14 @@ const columns: GridColDef[] = [
 	},
 ] as const;
 
-type Filter = 'grow' | 'fall' | 'all';
-
 export const StockList = () => {
 	const searchParams = useSearchParams();
 	const { replace } = useRouter();
 	const pathName = usePathname();
 
-	const queryClient = useQueryClient();
-	const { data, isLoading } = useStocksQuery(symbols.join(','));
+	const { stocks, filter, setFilter, isLoading } = useStockContext();
 
-	const [filter, setFilter] = useState<Filter>('all');
-
-	const filteredData = useMemo(() => {
-		const convertedData = stockConverter.convertToDataGrid(data ?? []);
-
-		if (filter === 'grow') {
-			return convertedData.filter(stock => stock.price > stock.open);
-		} else if (filter === 'fall') {
-			return convertedData.filter(stock => stock.price <= stock.open);
-		}
-
-		return convertedData;
-	}, [data, filter]);
-
-	const onPriceUpdate = useCallback(
-		(lastUpdate: number, update: StockPriceUpdate) => {
-			const now = Date.now();
-
-			if (now - lastUpdate >= UPDATE_INTERVAL) {
-				queryClient.setQueryData(['stocks', symbols.join(',')], (oldData: Stock[]) => {
-					if (!oldData) return oldData;
-					return oldData.map(stock => (stock.symbol === update.symbol ? { ...stock, price: update.price } : stock));
-				});
-				lastUpdate = now;
-			}
-		},
-		[symbols],
-	);
+	const [selectedStock, setSelectedStock] = useState<StockDataGrid | null>(null);
 
 	const handleChangeFilter = (filter: Filter) => {
 		setFilter(filter);
@@ -134,42 +128,47 @@ export const StockList = () => {
 		replace(`${pathName}?${params.toString()}`);
 	};
 
+	const handleRowClick = (rowSelectionModel: GridRowSelectionModel, details: GridCallbackDetails) => {
+		if (!rowSelectionModel.ids.size) {
+			setSelectedStock(null);
+			return;
+		}
+
+		const selectedStockId = Array.from(rowSelectionModel.ids)[0] as string;
+		const selectedStock = stocks.find(stock => stock.symbol.toLowerCase() === selectedStockId.toLowerCase());
+
+		if (selectedStock) setSelectedStock(selectedStock);
+	};
+
 	useEffect(() => {
 		setFilter(searchParams.get('filter') as Filter);
 	}, [searchParams]);
 
-	useEffect(() => {
-		const lastUpdate = Date.now();
-
-		const unsubscribe = twelveDataClientApi.subscribeToPrices(symbols.join(','), update =>
-			onPriceUpdate(lastUpdate, update),
-		);
-
-		return () => unsubscribe();
-	}, [symbols]);
-
 	return (
-		<Box>
-			<Typography variant='h4' component='h4' sx={{ textAlign: 'center', pb: 5 }}>
-				Stocks
-			</Typography>
-			<DataGrid
-				slots={{
-					toolbar: () => <CustomToolbar filter={filter} handleChangeFilter={handleChangeFilter} />,
-				}}
-				showToolbar
-				estimatedRowCount={8}
-				loading={isLoading}
-				columns={columns}
-				rows={filteredData}
-				disableAutosize={true}
-				disableColumnFilter={true}
-				disableColumnMenu={true}
-				disableColumnSorting={true}
-				disableColumnSelector={true}
-				disableDensitySelector={true}
-			/>
-		</Box>
+		<Stack spacing={3}>
+			<Box>
+				<Typography variant='h4' component='h4' sx={{ textAlign: 'center', pb: 5 }}>
+					Stocks
+				</Typography>
+				<DataGrid
+					slots={{
+						toolbar: () => <CustomToolbar filter={filter} handleChangeFilter={handleChangeFilter} />,
+					}}
+					showToolbar
+					loading={isLoading}
+					columns={columns}
+					rows={stocks}
+					disableAutosize
+					disableColumnFilter
+					disableColumnMenu
+					disableColumnSorting
+					disableColumnSelector
+					disableDensitySelector
+					onRowSelectionModelChange={handleRowClick}
+				/>
+			</Box>
+			{selectedStock && <StockChart stock={selectedStock} />}
+		</Stack>
 	);
 };
 
