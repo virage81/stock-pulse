@@ -1,5 +1,6 @@
 'use client';
 import { Filter, useStockContext } from '@/api/context';
+import { StockDataGrid, TechnicalIndicators } from '@/types/stock';
 import { numberFormat } from '@/utils';
 import { ArrowDownward, ArrowUpward, Cancel, FilterList, Search } from '@mui/icons-material';
 import {
@@ -16,9 +17,18 @@ import {
 	Toolbar,
 	Typography,
 } from '@mui/material';
-import { DataGrid, GridColDef, QuickFilter, QuickFilterClear, QuickFilterControl } from '@mui/x-data-grid';
+import {
+	DataGrid,
+	GridCallbackDetails,
+	GridColDef,
+	GridRowSelectionModel,
+	QuickFilter,
+	QuickFilterClear,
+	QuickFilterControl,
+} from '@mui/x-data-grid';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { StockChart } from './StockChart';
 
 const columns: GridColDef[] = [
 	{
@@ -42,6 +52,30 @@ const columns: GridColDef[] = [
 						currency: params.row.currency,
 						style: 'currency',
 					})}
+				</Typography>
+			);
+		},
+	},
+	{
+		field: 'rsi',
+		headerName: 'RSI (14)',
+		headerAlign: 'center',
+		align: 'center',
+		flex: 1,
+		renderCell(params) {
+			return <Typography sx={{ fontSize: 'inherit', lineHeight: 'inherit' }}>{numberFormat(params.value)}</Typography>;
+		},
+	},
+	{
+		field: 'macd',
+		headerName: 'MACD',
+		headerAlign: 'center',
+		align: 'center',
+		flex: 1,
+		renderCell(params) {
+			return (
+				<Typography sx={{ fontSize: 'inherit', lineHeight: 'inherit' }}>
+					{numberFormat((params.value as TechnicalIndicators['macd']).macdLine ?? 0)}
 				</Typography>
 			);
 		},
@@ -84,6 +118,8 @@ export const StockList = () => {
 
 	const { stocks, filter, setFilter, isLoading } = useStockContext();
 
+	const [selectedStock, setSelectedStock] = useState<StockDataGrid | null>(null);
+
 	const handleChangeFilter = (filter: Filter) => {
 		setFilter(filter);
 		const params = new URLSearchParams(searchParams);
@@ -92,31 +128,47 @@ export const StockList = () => {
 		replace(`${pathName}?${params.toString()}`);
 	};
 
+	const handleRowClick = (rowSelectionModel: GridRowSelectionModel, details: GridCallbackDetails) => {
+		if (!rowSelectionModel.ids.size) {
+			setSelectedStock(null);
+			return;
+		}
+
+		const selectedStockId = Array.from(rowSelectionModel.ids)[0] as string;
+		const selectedStock = stocks.find(stock => stock.symbol.toLowerCase() === selectedStockId.toLowerCase());
+
+		if (selectedStock) setSelectedStock(selectedStock);
+	};
+
 	useEffect(() => {
 		setFilter(searchParams.get('filter') as Filter);
 	}, [searchParams]);
 
 	return (
-		<Box>
-			<Typography variant='h4' component='h4' sx={{ textAlign: 'center', pb: 5 }}>
-				Stocks
-			</Typography>
-			<DataGrid
-				slots={{
-					toolbar: () => <CustomToolbar filter={filter} handleChangeFilter={handleChangeFilter} />,
-				}}
-				showToolbar
-				loading={isLoading}
-				columns={columns}
-				rows={stocks}
-				disableAutosize
-				disableColumnFilter
-				disableColumnMenu
-				disableColumnSorting
-				disableColumnSelector
-				disableDensitySelector
-			/>
-		</Box>
+		<Stack spacing={3}>
+			<Box>
+				<Typography variant='h4' component='h4' sx={{ textAlign: 'center', pb: 5 }}>
+					Stocks
+				</Typography>
+				<DataGrid
+					slots={{
+						toolbar: () => <CustomToolbar filter={filter} handleChangeFilter={handleChangeFilter} />,
+					}}
+					showToolbar
+					loading={isLoading}
+					columns={columns}
+					rows={stocks}
+					disableAutosize
+					disableColumnFilter
+					disableColumnMenu
+					disableColumnSorting
+					disableColumnSelector
+					disableDensitySelector
+					onRowSelectionModelChange={handleRowClick}
+				/>
+			</Box>
+			{selectedStock && <StockChart stock={selectedStock} />}
+		</Stack>
 	);
 };
 

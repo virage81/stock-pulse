@@ -4,7 +4,7 @@ export interface StockDtoRecord {
 
 export interface StockDto {
 	meta: StockDtoMeta;
-	values: StockDtoValue[];
+	values: StockDtoHistory[];
 }
 
 interface StockDtoMeta {
@@ -17,7 +17,7 @@ interface StockDtoMeta {
 	type: string;
 }
 
-interface StockDtoValue {
+interface StockDtoHistory {
 	datetime: string;
 	open: string;
 	high: string;
@@ -26,15 +26,40 @@ interface StockDtoValue {
 	volume: string;
 }
 
-export interface Stock {
+export interface TechnicalIndicators {
+	rsi: number | null;
+	macd: {
+		macdLine: number | null;
+		signalLine: number | null;
+		histogram: number | null;
+	};
+}
+
+export interface Stock extends TechnicalIndicators {
 	symbol: string;
 	currency: string;
 	price: string;
 	open: string;
 	close: string;
+	history: StockHistory[];
+}
+
+export interface StockHistory {
+	datetime: string;
+	open: string;
+	high: string;
+	low: string;
+	close: string;
+	volume: string;
 }
 
 export interface StockDataGrid extends Stock {
 	id: string;
 	priceChange: number;
+}
+
+export interface StockChart extends Pick<Stock, 'symbol' | 'currency'> {
+	open: number[];
+	close: number[];
+	rsi: number[];
 }

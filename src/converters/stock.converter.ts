@@ -1,5 +1,6 @@
 import { Stock, StockDataGrid, StockDto } from '@/types/stock';
 import { numberFormat } from '@/utils';
+import { StockTechnicalIndicator } from './stock.indicators';
 
 export class StockConverter {
 	public stock: Stock | null = null;
@@ -13,15 +14,26 @@ export class StockConverter {
 			price: numberFormat(parseFloat(data.values[0].close)),
 			close: numberFormat(parseFloat(data.values[0].close)),
 			open: numberFormat(parseFloat(data.values[0].open)),
+			history: data.values,
 		};
+		const { rsi, macd } = new StockTechnicalIndicator(convertedStock as Stock).calculateTechnicalIndicators();
 
-		this.stock = convertedStock;
+		this.stock = { ...convertedStock, rsi, macd };
 		return this.stock;
 	}
 
 	public calculatePriceChange(stock: Stock): number {
 		const formattedPrice = numberFormat(parseFloat(stock.open) - parseFloat(stock.price));
 		return parseFloat(formattedPrice);
+	}
+
+	public updatePrice(data: Stock): StockDataGrid {
+		const priceChange = this.calculatePriceChange(data);
+		return {
+			id: data.symbol,
+			priceChange,
+			...data,
+		};
 	}
 
 	public convertToDataGrid(data: Stock[]): StockDataGrid[] {
@@ -36,12 +48,5 @@ export class StockConverter {
 		}, [] as StockDataGrid[]);
 	}
 
-	public updatePrice(data: Stock): StockDataGrid {
-		const priceChange = this.calculatePriceChange(data);
-		return {
-			id: data.symbol,
-			priceChange,
-			...data,
-		};
-	}
+	public convertToChart(data: Stock[]) {}
 }

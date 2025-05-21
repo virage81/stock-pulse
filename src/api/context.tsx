@@ -2,7 +2,7 @@ import { StockConverter } from '@/converters/stock.converter';
 import config from '@/core/config';
 import { Stock, StockDataGrid } from '@/types/stock';
 import { useQueryClient } from '@tanstack/react-query';
-import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useStocksQuery } from './queries/stocks';
 import { StockPriceUpdate, twelveDataClientApi } from './twelvedata';
 
@@ -27,6 +27,8 @@ export const StockProvider = ({ children }: PropsWithChildren) => {
 
 	const [filter, setFilter] = useState<Filter>('all');
 
+	const lastUpdate = useRef<number>(Date.now());
+
 	const filteredData = useMemo(() => {
 		const convertedData = stockConverter.convertToDataGrid(data ?? []);
 
@@ -40,26 +42,23 @@ export const StockProvider = ({ children }: PropsWithChildren) => {
 	}, [data, filter]);
 
 	const onPriceUpdate = useCallback(
-		(lastUpdate: number, update: StockPriceUpdate) => {
+		(update: StockPriceUpdate) => {
 			const now = Date.now();
 
-			if (now - lastUpdate >= UPDATE_INTERVAL) {
+			if (now - lastUpdate.current >= UPDATE_INTERVAL) {
 				queryClient.setQueryData(['stocks', symbols.join(',')], (oldData: Stock[]) => {
 					if (!oldData) return oldData;
 					return oldData.map(stock => (stock.symbol === update.symbol ? { ...stock, price: update.price } : stock));
 				});
-				lastUpdate = now;
+				lastUpdate.current = now;
 			}
 		},
 		[symbols],
 	);
 
 	useEffect(() => {
-		const lastUpdate = Date.now();
-
-		const unsubscribe = twelveDataClientApi.subscribeToPrices(symbols.join(','), update =>
-			onPriceUpdate(lastUpdate, update),
-		);
+		lastUpdate.current = Date.now();
+		const unsubscribe = twelveDataClientApi.subscribeToPrices(symbols.join(','), onPriceUpdate);
 
 		return () => unsubscribe();
 	}, [symbols]);
