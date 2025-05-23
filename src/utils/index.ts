@@ -15,7 +15,7 @@ export const formatAndConvertNumber = (value: string | number, options?: Intl.Nu
 		...options,
 	});
 
-	if (typeof value === 'string') {
-		return parseFloat(formatter.format(parseFloat(value)));
-	} else return parseFloat(formatter.format(value));
+	let parsedValue = typeof value === 'string' ? parseFloat(value) : value;
+
+	return parseFloat(formatter.format(parsedValue));
 };
