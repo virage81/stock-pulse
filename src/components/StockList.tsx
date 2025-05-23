@@ -9,7 +9,6 @@ import {
 	Input,
 	InputAdornment,
 	InputLabel,
-	Link,
 	MenuItem,
 	Select,
 	SelectChangeEvent,
@@ -35,9 +34,6 @@ const columns: GridColDef[] = [
 		field: 'symbol',
 		headerName: 'Symbol',
 		flex: 2,
-		renderCell(params) {
-			return <Link href={`/stocks/${(params.value as string).toLocaleLowerCase()}`}>{params.value}</Link>;
-		},
 	},
 	{
 		field: 'price',
