@@ -19,7 +19,7 @@ pnpm dev
 bun dev
 ```
 
-2. Get [twelvedata](https://twelvedata.com/account/api-keys) api credentials and store them in `.env.local`
+2. Get [twelvedata](https://twelvedata.com/account/api-keys) api key, url, websocket url and store them in `.env.local`
 
 3. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
