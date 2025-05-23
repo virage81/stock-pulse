@@ -137,7 +137,10 @@ export const StockList = () => {
 	};
 
 	useEffect(() => {
-		setFilter(searchParams.get('filter') as Filter);
+		const filter = searchParams.get('filter');
+
+		if (!filter) handleChangeFilter('all');
+		else handleChangeFilter(filter as Filter);
 	}, [searchParams]);
 
 	return (
