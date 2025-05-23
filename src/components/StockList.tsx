@@ -9,7 +9,6 @@ import {
 	Input,
 	InputAdornment,
 	InputLabel,
-	Link,
 	MenuItem,
 	Select,
 	SelectChangeEvent,
@@ -35,9 +34,6 @@ const columns: GridColDef[] = [
 		field: 'symbol',
 		headerName: 'Symbol',
 		flex: 2,
-		renderCell(params) {
-			return <Link href={`/stocks/${(params.value as string).toLocaleLowerCase()}`}>{params.value}</Link>;
-		},
 	},
 	{
 		field: 'price',
@@ -141,7 +137,10 @@ export const StockList = () => {
 	};
 
 	useEffect(() => {
-		setFilter(searchParams.get('filter') as Filter);
+		const filter = searchParams.get('filter');
+
+		if (!filter) handleChangeFilter('all');
+		else handleChangeFilter(filter as Filter);
 	}, [searchParams]);
 
 	return (
@@ -167,7 +166,13 @@ export const StockList = () => {
 					onRowSelectionModelChange={handleRowClick}
 				/>
 			</Box>
-			{selectedStock && <StockChart stock={selectedStock} />}
+			{selectedStock ? (
+				<StockChart stock={selectedStock} />
+			) : (
+				<Typography variant='body1' align='center'>
+					Select a stock to view a graph
+				</Typography>
+			)}
 		</Stack>
 	);
 };
