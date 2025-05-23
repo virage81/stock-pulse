@@ -163,7 +163,13 @@ export const StockList = () => {
 					onRowSelectionModelChange={handleRowClick}
 				/>
 			</Box>
-			{selectedStock && <StockChart stock={selectedStock} />}
+			{selectedStock ? (
+				<StockChart stock={selectedStock} />
+			) : (
+				<Typography variant='body1' align='center'>
+					Select a stock to view a graph
+				</Typography>
+			)}
 		</Stack>
 	);
 };
